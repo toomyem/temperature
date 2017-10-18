@@ -72,10 +72,8 @@ func main() {
 		log.Fatalf("cannot parse reading: %s\n", err)
 	}
 
-	fmt.Printf("temperature = %0.3f\n", temperature)
-
 	client := http.Client{Timeout: time.Second * 10}
-	url := fmt.Sprintf("https://api.thingspeak.com/update?api_key=%s&field2=%f", apiKey, temperature)
+	url := fmt.Sprintf("https://api.thingspeak.com/update?api_key=%s&field1=%f", apiKey, temperature)
 	resp, err := client.Get(url)
 	if err != nil {
 		log.Fatalf("Cannot update remote service: %s", err)
@@ -83,4 +81,17 @@ func main() {
 	if resp.StatusCode != 200 {
 		log.Fatalf("Remote service returned: %d", resp.StatusCode)
 	}
+
+	location, err := time.LoadLocation("Europe/Warsaw")
+	if err != nil {
+		log.Fatalf("Cannot load location: %s", err)
+	}
+	timestamp := time.Now().In(location).Format(time.UnixDate)
+
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalf("Cannot get body from response: %s", err)
+	}
+	fmt.Printf("%s - %0.3f - %s\n", string(body), temperature, timestamp)
 }
