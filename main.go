@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"regexp"
 	"strconv"
+	"time"
 )
 
 type terror string
@@ -15,15 +17,16 @@ func (err terror) Error() string {
 }
 
 const (
+	apiKey = "TK84RJY90YCRR24W"
+	device = "28-0115a30955ff"
+)
+
+const (
 	crcParseError       = terror("cannot parse crc")
 	incorrectCrcError   = terror("incorrect crc")
 	tempParseError      = terror("cannot parse temperature")
 	tempValueParseError = terror("cannot parse temperature value")
 )
-
-type w1device interface {
-	getReading() (string, error)
-}
 
 func parseReading(reading string) (float64, error) {
 	crcRegexp := regexp.MustCompile(" crc=\\w+ ([A-Z]+)")
@@ -59,15 +62,36 @@ func getReading(address string) (string, error) {
 }
 
 func main() {
-	reading, err := getReading("28-0115a30955ff")
+	reading, err := getReading(device)
 	if err != nil {
 		log.Fatalf("cannot read device: %s\n", err)
 	}
 
-	value, err := parseReading(reading)
+	temperature, err := parseReading(reading)
 	if err != nil {
 		log.Fatalf("cannot parse reading: %s\n", err)
 	}
 
-	fmt.Printf("temperature = %0.3f\n", value)
+	client := http.Client{Timeout: time.Second * 10}
+	url := fmt.Sprintf("https://api.thingspeak.com/update?api_key=%s&field1=%f", apiKey, temperature)
+	resp, err := client.Get(url)
+	if err != nil {
+		log.Fatalf("Cannot update remote service: %s", err)
+	}
+	if resp.StatusCode != 200 {
+		log.Fatalf("Remote service returned: %d", resp.StatusCode)
+	}
+
+	location, err := time.LoadLocation("Europe/Warsaw")
+	if err != nil {
+		log.Fatalf("Cannot load location: %s", err)
+	}
+	timestamp := time.Now().In(location).Format(time.UnixDate)
+
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalf("Cannot get body from response: %s", err)
+	}
+	fmt.Printf("%s - %0.3f - %s\n", string(body), temperature, timestamp)
 }
