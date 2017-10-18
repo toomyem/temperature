@@ -8,17 +8,17 @@ import (
 	"strconv"
 )
 
-type Error string
+type terror string
 
-func (err Error) Error() string {
+func (err terror) Error() string {
 	return string(err)
 }
 
 const (
-	crcParseError       = Error("cannot parse crc")
-	incorrectCrcError   = Error("incorrect crc")
-	tempParseError      = Error("cannot parse temperature")
-	tempValueParseError = Error("cannot parse temperature value")
+	crcParseError       = terror("cannot parse crc")
+	incorrectCrcError   = terror("incorrect crc")
+	tempParseError      = terror("cannot parse temperature")
+	tempValueParseError = terror("cannot parse temperature value")
 )
 
 type w1device interface {
